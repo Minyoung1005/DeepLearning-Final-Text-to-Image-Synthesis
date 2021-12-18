@@ -1,0 +1,61 @@
+#################################################
+# DO NOT CHANGE 
+CONFIG_NAME: 'text-to-image'
+
+DATASET_NAME: 'birds'
+EMBEDDING_TYPE: 'cnn-rnn'
+DATA_DIR: 'data/birds'
+
+IMAGE_SIZE: 128
+CUDA: True
+WRONG_CAPTION: 9
+
+CHECKPOINT_DIR: './checkpoint'
+
+BATCH_SIZE: 10
+#################################################
+
+GPU_ID: '0'
+WORKERS: 4
+
+TREE:
+    BASE_SIZE: 32
+    BRANCH_NUM: 2
+
+TRAIN:
+    FLAG: False
+    CNN_ENCODER: '' #'./evaluation/sim_models/bird/image_encoder.pth'
+    RNN_ENCODER: '' #'./evaluation/sim_models/bird/text_encoder.pth'
+    GENERATOR: '' # Your generator weights (.pth)
+    
+    MAX_EPOCH: 600
+    SNAPSHOT_INTERVAL: 50
+    DISCRIMINATOR_LR: 0.0002
+    GENERATOR_LR: 0.0002
+
+
+#################################################
+# DO NOT CHANGE 
+TEST:
+    B_EXAMPLE: False
+    GENERATED_TEST_IMAGES: './evaluation/generated_images'
+#################################################
+    
+    
+RNN:
+    TYPE: 'LSTM'
+    
+GAN:
+    DF_DIM: 32
+    GF_DIM: 64
+    Z_DIM: 100
+    CONDITION_DIM: 100
+    R_NUM: 2
+
+#################################################
+# DO NOT CHANGE 
+TEXT:
+    CAPTIONS_PER_IMAGE: 10
+#################################################
+    EMBEDDING_DIM: 256
+    WORDS_NUM: 18

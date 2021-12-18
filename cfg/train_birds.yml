@@ -1,0 +1,101 @@
+#################################################
+# DO NOT CHANGE 
+CONFIG_NAME: 'text-to-image'
+
+DATASET_NAME: 'birds'
+EMBEDDING_TYPE: 'cnn-rnn'
+DATA_DIR: 'data/birds'
+
+IMAGE_SIZE: 128
+CUDA: True
+WRONG_CAPTION: 9
+
+CHECKPOINT_DIR: './checkpoint'
+#################################################
+
+GPU_ID: '0'
+WORKERS: 4
+
+BATCH_SIZE: 64
+
+TREE:
+    BASE_SIZE: 32
+#    BRANCH_NUM: 2
+    # DM-GAN
+    BRANCH_NUM: 2 #3
+
+
+
+#################################################
+# DO NOT CHANGE
+TRAIN:
+    FLAG: True
+#################################################
+    CNN_ENCODER: '' #'./evaluation/sim_models/bird/image_encoder.pth'
+    RNN_ENCODER: '' #'./evaluation/sim_models/bird/text_encoder.pth'
+    GENERATOR: ''
+    
+#    MAX_EPOCH: 600
+#    SNAPSHOT_INTERVAL: 50
+#    DISCRIMINATOR_LR: 0.0002
+#    GENERATOR_LR: 0.0002
+    # DM-GAN
+    # Training options
+    BATCH_SIZE: 64 #10
+    MAX_EPOCH:  800
+    SNAPSHOT_INTERVAL: 25 #2000
+    DISCRIMINATOR_LR: 0.0002 #2e-4
+    GENERATOR_LR: 0.0002 #2e-4
+    ENCODER_LR: 0.0002 #2e-4
+    RNN_GRAD_CLIP: 0.25
+#    FLAG: True
+    NET_E: './models/bird/text_encoder200.pth'
+    NET_G: '' #'./models/bird_DMGAN.pth' #''
+    B_NET_D: True
+
+    SMOOTH:
+        GAMMA1: 4.0
+        GAMMA3: 10.0
+        GAMMA2: 5.0
+        LAMBDA: 5.0
+
+
+
+
+#################################################
+# DO NOT CHANGE 
+TEST:
+    B_EXAMPLE: False
+    GENERATED_TEST_IMAGES: './evaluation/generated_images'
+#################################################
+
+
+RNN:
+    TYPE: 'LSTM'
+    
+GAN:
+#    DF_DIM: 32
+#    GF_DIM: 64
+#    Z_DIM: 100
+#    CONDITION_DIM: 100
+#    R_NUM: 2
+    #DM-GAN
+    DF_DIM: 32 #64
+    GF_DIM: 64 # 128
+    Z_DIM: 100 #100
+    CONDITION_DIM: 100
+    R_NUM: 2
+    B_ATTENTION: True
+    B_DCGAN: False
+    
+#################################################
+# DO NET CHANGE 
+TEXT:
+    CAPTIONS_PER_IMAGE: 10
+#################################################
+    EMBEDDING_DIM: 256
+    WORDS_NUM: 18
+#    # DM-GAN
+#    CAPTIONS_PER_IMAGE: 10
+#    EMBEDDING_DIM: 256
+#    WORDS_NUM: 18
