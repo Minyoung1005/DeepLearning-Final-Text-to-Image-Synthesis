@@ -1,6 +1,13 @@
 #Data
 data/
-evaluation/inception_finetuned_models/
+#evaluation/**
+evaluation/sim_models/**
+evaluation/.npz
+evaluation/inception_finetuned_models/**
+evaluation/generated_images/**
+evaluation/generated_images*/**
+sample/**
+models/**
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

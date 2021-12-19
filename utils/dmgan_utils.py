@@ -228,7 +228,8 @@ def build_super_images2(real_imgs, captions, cap_lens, ixtoword,
             if (vis_size // att_sze) > 1:
                 one_map = \
                     skimage.transform.pyramid_expand(one_map, sigma=20,
-                                                     upscale=vis_size // att_sze)
+                                                     upscale=vis_size // att_sze, channel_axis=2)
+
             minV = one_map.min()
             maxV = one_map.max()
             one_map = (one_map - minV) / (maxV - minV)
@@ -255,6 +256,7 @@ def build_super_images2(real_imgs, captions, cap_lens, ixtoword,
             txt = text_map[i * FONT_MAX:(i + 1) * FONT_MAX,
                            j * (vis_size + 2):(j + 1) * (vis_size + 2), :]
             row_txt.append(txt)
+
         # reorder
         row_new = []
         row_merge_new = []
@@ -274,6 +276,7 @@ def build_super_images2(real_imgs, captions, cap_lens, ixtoword,
             break
         row = np.concatenate([txt, row_merge], 0)
         img_set.append(row)
+
     if bUpdate:
         img_set = np.concatenate(img_set, 0)
         img_set = img_set.astype(np.uint8)
