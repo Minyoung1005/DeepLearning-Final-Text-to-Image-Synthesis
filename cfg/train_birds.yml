@@ -14,9 +14,9 @@ CHECKPOINT_DIR: './checkpoint'
 #################################################
 
 GPU_ID: '0'
-WORKERS: 4
+WORKERS: 1 #4
 
-BATCH_SIZE: 64
+BATCH_SIZE: 16 #64
 
 TREE:
     BASE_SIZE: 32
@@ -41,10 +41,10 @@ TRAIN:
 #    GENERATOR_LR: 0.0002
     # DM-GAN
     # Training options
-    BATCH_SIZE: 64 #10
+    BATCH_SIZE: 16 #64 #10
     MAX_EPOCH:  800
     SNAPSHOT_INTERVAL: 25 #2000
-    DISCRIMINATOR_LR: 0.0002 #2e-4
+    DISCRIMINATOR_LR: 0.0002 #2e-4ipykern
     GENERATOR_LR: 0.0002 #2e-4
     ENCODER_LR: 0.0002 #2e-4
     RNN_GRAD_CLIP: 0.25

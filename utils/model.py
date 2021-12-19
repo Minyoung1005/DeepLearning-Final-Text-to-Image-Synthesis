@@ -21,6 +21,8 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from miscc.config import cfg
 
+device = 'cuda:' + str(0) if torch.cuda.device_count() > 0 else 'cpu'
+
 
 #######################################################################################################
 # DO NOT CHANGE THE CLASS NAME, COMPOSITION OF ENCODER CAN BE CHANGED
@@ -590,7 +592,7 @@ class CA_NET(nn.Module):
     def reparametrize(self, mu, logvar):
         std = logvar.mul(0.5).exp_()
         if cfg.CUDA:
-            eps = torch.FloatTensor(std.size()).normal_() # torch.cuda.FloatTensor(std.size()).normal_()
+            eps = torch.FloatTensor(std.size()).normal_().to(device) # torch.cuda.FloatTensor(std.size()).normal_()
         else:
             eps = torch.FloatTensor(std.size()).normal_()
         eps = Variable(eps)
