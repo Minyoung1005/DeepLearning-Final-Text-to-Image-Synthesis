@@ -2,7 +2,11 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+<<<<<<< HEAD
       <module fileurl="file://$PROJECT_DIR$/.idea/DeepLearning-Final-Text-to-Image-Synthesis.iml" filepath="$PROJECT_DIR$/.idea/DeepLearning-Final-Text-to-Image-Synthesis.iml" />
+=======
+      <module fileurl="file://$PROJECT_DIR$/.idea/22Final.iml" filepath="$PROJECT_DIR$/.idea/22Final.iml" />
+>>>>>>> edeb89176c16f0a6e9a9c75934af3e9cfe2f377d
     </modules>
   </component>
 </project>

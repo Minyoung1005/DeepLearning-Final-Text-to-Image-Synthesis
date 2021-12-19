@@ -14,7 +14,7 @@ from utils.data_utils import CUBDataset
 from utils.trainer import trainer
 
 # Set a config file as 'train_birds.yml' in training, as 'eval_birds.yml' for evaluation
-cfg_from_file('cfg/train_birds.yml') # eval_birds.yml
+cfg_from_file('cfg/eval_birds.yml') # eval_birds.yml
 
 print('Using config:')
 pprint.pprint(cfg)

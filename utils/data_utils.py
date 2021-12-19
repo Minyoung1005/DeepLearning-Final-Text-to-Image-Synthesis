@@ -13,7 +13,6 @@ from nltk.tokenize import RegexpTokenizer
 import torch
 import torchvision.transforms as transforms
 
-    
 def get_imgs(img_path, imsize, bbox=None,
              transform=None, normalize=None):
     img = Image.open(img_path).convert('RGB')
@@ -312,7 +311,8 @@ class CUBDataset():
             idx = random.randint(0, len(self.filenames) - 1)
             if img_cls_id == self.class_id[idx] or cap_cls_id == self.class_id[idx]:
                 continue
-            sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE)
+            # student modified
+            sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE - 1) # if not -1, new_sent_idx can become 29330: invalid idx
             new_sent_ix = idx * cfg.TEXT.CAPTIONS_PER_IMAGE + sent_ix
             caps_t, cap_len_t = self.get_caption(new_sent_ix)
             mis_match_captions_t.append(torch.from_numpy(caps_t).squeeze())

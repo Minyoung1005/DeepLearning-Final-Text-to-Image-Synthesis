@@ -23,7 +23,6 @@ from miscc.config import cfg
 
 device = 'cuda:' + str(0) if torch.cuda.device_count() > 0 else 'cpu'
 
-
 #######################################################################################################
 # DO NOT CHANGE THE CLASS NAME, COMPOSITION OF ENCODER CAN BE CHANGED
 class RNN_ENCODER(nn.Module):
@@ -133,7 +132,7 @@ class RNN_ENCODER(nn.Module):
         output, hidden = self.rnn(emb, hidden)
         # PackedSequence object
         # --> (batch, seq_len, hidden_size * num_directions)
-        output = pad_packed_sequence(output, batch_first=True)[0]
+        output = pad_packed_sequence(output, batch_first=True, total_length=18)[0] # total length added
         # output = self.drop(output)
         # --> batch x hidden_size*num_directions x seq_len
         words_emb = output.transpose(1, 2)

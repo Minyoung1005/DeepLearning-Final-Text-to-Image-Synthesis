@@ -13,6 +13,8 @@ import time
 #########################################
 # STUDENT IMPLEMENTATION
 from utils.dm_gan_trainer import condGANTrainer
+from utils.model import G_DCGAN, G_NET
+from utils.dmgan_utils import build_super_images, build_super_images2
 #########################################
 
 #################################################
@@ -95,7 +97,12 @@ class trainer(object):
         Prepares data given by dataloader
         e.g., x = Variable(x).cuda()
         """
-        imgs = data['img']
+        if 'imgs' in data:
+            imgs = data['img']
+        elif 'gen_img' in data:
+            imgs = data['gen_img']
+        else:
+            imgs = None
         captions = data['caps']
         captions_lens = data['cap_len']
         class_ids = data['cls_id']
@@ -113,14 +120,16 @@ class trainer(object):
         # if cfg.CUDA:
         #     imgs = Variable(imgs).cuda()
         #################################################
-
-        real_imgs = []
-        for i in range(len(imgs)):
-            imgs[i] = imgs[i][sorted_cap_indices]
-            if cfg.CUDA:
-                real_imgs.append(Variable(imgs[i]).to(self.device))
-            else:
-                real_imgs.append(Variable(imgs[i]))
+        if imgs is not None:
+            real_imgs = []
+            for i in range(len(imgs)):
+                imgs[i] = imgs[i][sorted_cap_indices]
+                if cfg.CUDA:
+                    real_imgs.append(Variable(imgs[i]).to(self.device))
+                else:
+                    real_imgs.append(Variable(imgs[i]))
+        else:
+            real_imgs = []
 
         captions = captions[sorted_cap_indices].squeeze()
         class_ids = class_ids[sorted_cap_indices].numpy()
@@ -152,20 +161,31 @@ class trainer(object):
     def generate_eval_data(self):
         # load the text encoder model to generate images for evaluation
         self.text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
-        state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.RNN_ENCODER), map_location=lambda storage, loc: storage)
+        # state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.RNN_ENCODER), map_location=lambda storage, loc: storage)
+        state_dict = \
+            torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
         self.text_encoder.load_state_dict(state_dict)
         for p in self.text_encoder.parameters():
             p.requires_grad = False
-        print('Load text encoder from:', cfg.TRAIN.RNN_ENCODER)
+        # print('Load text encoder from:', cfg.TRAIN.RNN_ENCODER)
+        print('Load text encoder from:', cfg.TRAIN.NET_E)
         self.text_encoder.eval()
-        
+
         # load the generator model to generate images for evaluation
-        self.netG = GENERATOR()
-        state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.GENERATOR), map_location=lambda storage, loc: storage)
-        self.netG.load_state_dict(state_dict)
+        self.netG = G_NET() #GENERATOR()
+        # state_dict = torch.load(os.path.join(cfg.CHECKPOINT_DIR, cfg.TRAIN.GENERATOR), map_location=lambda storage, loc: storage)
+        s_tmp = cfg.TRAIN.NET_G[:cfg.TRAIN.NET_G.rfind('.pth')]
+        model_dir = cfg.TRAIN.NET_G
+        state_dict = \
+            torch.load(model_dir, map_location=lambda storage, loc: storage)
+        new_netG_dict = self.netG.state_dict()
+        pretrained_dict = {k: v for k, v in state_dict.items() if k in new_netG_dict}
+        new_netG_dict.update(pretrained_dict)
+        self.netG.load_state_dict(new_netG_dict)
         for p in self.netG.parameters():
             p.requires_grad = False
-        print('Load generator from:', cfg.TRAIN.GENERATOR)
+        # print('Load generator from:', cfg.TRAIN.GENERATOR)
+        print('Load G from: ', model_dir)
         self.netG.eval()
 
         noise = Variable(torch.FloatTensor(self.batch_size, cfg.GAN.Z_DIM))
@@ -177,36 +197,63 @@ class trainer(object):
 
         for step, data in enumerate(self.test_dataloader, 0):
             imgs, captions, cap_lens, class_ids, keys, sent_idx = self.prepare_data(data)
-            
+
             #################################################
             # TODO
-            # word embedding might be returned as well 
+            # word embedding might be returned as well
             # hidden = self.text_encoder.init_hidden(self.batch_size)
             # sent_emb = self.text_encoder(captions, cap_lens, hidden)
             # sent_emb = sent_emb.detach()
             #################################################
+
             noise.data.normal_(0, 1)
-            
+            hidden = self.text_encoder.init_hidden(self.batch_size)
+            # cap_lens = 18
+            words_embs, sent_emb = self.text_encoder(captions, cap_lens, hidden)
+            mask = (captions == 0)
+            # if words_embs.shape[2] == 16:
+            # import ipdb;ipdb.set_trace()
+            fake_imgs, attention_maps, _, _ = self.netG(noise, sent_emb, words_embs, mask, cap_lens)
+
             #################################################
             # TODO
             # this part can be different, depending on which algorithm is used
             # the main purpose is generating synthetic images using caption embedding and latent vector (noise)
             # fake_img = self.netG(noise, sent_emb, ...)
             #################################################
-
             for j in range(self.batch_size):
                 if not os.path.exists(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j].split('/')[0])):
                     os.mkdir(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j].split('/')[0]))
 
-                im = fake_imgs[j].data.cpu().numpy()
-                im = (im + 1.0) * 127.5
-                im = im.astype(np.uint8)
-                im = np.transpose(im, (1, 2, 0))
-                im = Image.fromarray(im)
-                print(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
-                im.save(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
-        
-        
+                for k in range(len(fake_imgs)):
+                    if k==1:
+                        im = fake_imgs[k][j].data.cpu().numpy()
+                        im = (im + 1.0) * 127.5
+                        im = im.astype(np.uint8)
+                        im = np.transpose(im, (1, 2, 0))
+                        im = Image.fromarray(im)
+                        # print(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
+                        # im.save(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
+                        print(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
+                        im.save(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}.png'.format(sent_idx[j])))
+
+                # for k in range(len(attention_maps)):
+                #     cap_lens_np = np.asarray(cap_lens)
+                #     im = fake_imgs[k+1].detach().cpu()
+                #     attn_maps = attention_maps[k]
+                #     att_sze = attn_maps.size(2)
+                #     img_set, sentences = \
+                #         build_super_images2(im[j].unsqueeze(0),
+                #                             captions[j].unsqueeze(0),
+                #                             [cap_lens_np[j]], self.test_ixtoword,
+                #                             [attn_maps[j]], att_sze)
+                #     if img_set is not None:
+                #         # import ipdb; ipdb.set_trace()
+                #         im = Image.fromarray(img_set)
+                #         print(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}_a.png'.format(sent_idx[j])))
+                #         im.save(os.path.join(cfg.TEST.GENERATED_TEST_IMAGES, keys[j] + '_{}_a.png'.format(sent_idx[j])))
+
+
     def save_model(self):
         """
         Saves models

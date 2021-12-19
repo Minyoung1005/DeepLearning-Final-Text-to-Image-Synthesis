@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+<<<<<<< HEAD
   <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.8" project-jdk-type="Python SDK" />
+=======
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.8 (deep-learning-21)" project-jdk-type="Python SDK" />
+>>>>>>> edeb89176c16f0a6e9a9c75934af3e9cfe2f377d
 </project>

@@ -16,7 +16,7 @@ BATCH_SIZE: 10
 #################################################
 
 GPU_ID: '0'
-WORKERS: 4
+WORKERS: 1 #4
 
 TREE:
     BASE_SIZE: 32
@@ -25,14 +25,31 @@ TREE:
 TRAIN:
     FLAG: False
     CNN_ENCODER: '' #'./evaluation/sim_models/bird/image_encoder.pth'
-    RNN_ENCODER: '' #'./evaluation/sim_models/bird/text_encoder.pth'
-    GENERATOR: '' # Your generator weights (.pth)
+    RNN_ENCODER: './models/bird/text_encoder200.pth' #'' #'./evaluation/sim_models/bird/text_encoder.pth'
+    GENERATOR: './sample/birds_text-to-image/netG_epoch_75.pth' #'' # Your generator weights (.pth)
     
-    MAX_EPOCH: 600
-    SNAPSHOT_INTERVAL: 50
-    DISCRIMINATOR_LR: 0.0002
-    GENERATOR_LR: 0.0002
+#    MAX_EPOCH: 600
+#    SNAPSHOT_INTERVAL: 50
+#    DISCRIMINATOR_LR: 0.0002
+#    GENERATOR_LR: 0.0002
+    ### DM-GAN
+    BATCH_SIZE: 10 #64
+    MAX_EPOCH: 800
+    SNAPSHOT_INTERVAL: 25 #2000
+    DISCRIMINATOR_LR: 0.0002 #2e-4
+    GENERATOR_LR: 0.0002 #2e-4
+    ENCODER_LR: 0.0002 #2e-4
+    RNN_GRAD_CLIP: 0.25
+    #    FLAG: True
+    NET_E: './models/bird/text_encoder200.pth'
+    NET_G: './sample/birds_text-to-image/netG_epoch_250.pth' # './models/bird_DMGAN.pth' #''
+    B_NET_D: True
 
+    SMOOTH:
+        GAMMA1: 4.0
+        GAMMA3: 10.0
+        GAMMA2: 5.0
+        LAMBDA: 5.0
 
 #################################################
 # DO NOT CHANGE 
