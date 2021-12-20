@@ -347,7 +347,7 @@ class condGANTrainer(object):
                 #######################################################
                 # (3) Update D network
                 ######################################################
-                loss_dict = {'errsD':[], 'image_contrastive':[]}
+                # loss_dict = {'errsD':[], 'image_contrastive':[]}
                 errD_total = 0
                 D_logs = ''
                 for i in range(len(netsD)):
@@ -359,8 +359,8 @@ class condGANTrainer(object):
                     errD_total += errD
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
                     D_logs += log
-                    loss_dict['errsD'].append(errD)
-                    loss_dict['image_contrastive'].append(log_dict['image_contrastive'])
+                    # loss_dict['errsD'].append(errD)
+                    # loss_dict['image_contrastive'].append(log_dict['image_contrastive'])
 
                 #######################################################
                 # (4) Update G network: maximize log(D(G(z)))
@@ -378,32 +378,19 @@ class condGANTrainer(object):
                 kl_loss = KL_loss(mu, logvar)
                 errG_total += kl_loss
                 G_logs += 'kl_loss: %.2f ' % kl_loss.item()
+                if cfg.CONTRASTIVE.WORD_CONTRASTIVE:
+                    image_contrastive_loss = log_dict['image_contrastive']
+                    # c_loss_d = errD_total
+                    # import ipdb; ipdb.set_trace()
+                    errG_total += torch.tensor(image_contrastive_loss).to(self.device)
+                    G_logs += 'image_c_loss: %.2f ' % image_contrastive_loss
+                    # print("image_contrastive_loss : ", image_contrastive_loss, "errG_total : ", errG_total)
                 # backward and update parameters
                 errG_total.backward()
                 optimizerG.step()
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
-                loss_dict['errG'] = errG_total
-
-                if cfg.CONTRASTIVE.WORD_CONTRASTIVE:
-                    # real_region_features, _ = image_encoder(imgs)
-                    # real_word_loss0, real_word_loss1, real_att_maps = words_loss(real_region_features.detach(),
-                    #                             words_embs.detach(),
-                    #                             None, cap_lens,
-                    #                             None, self.batch_size)
-                    # fake_region_features, _ = image_encoder(fake_imgs)
-                    # real_word_loss0, real_word_loss1, real_att_maps = words_loss(fake_region_features.detach(),
-                    #                                                              words_embs.detach(),
-                    #                                                              None, cap_lens,
-                    #                                                              None, self.batch_size)
-                    # real_loss = real_word_loss0+real_word_loss1
-                    # # Image contrastive loss
-                    # c_loss_d, c_loss_g = calculate_contrastive_loss(loss_dict)
-                    image_contrastive_loss, image_contrastive_acc, image_contrastive_entropy = log_dict['image_contrastive']
-                    # c_loss_d = errD_total
-                    errG_total += image_contrastive_loss
-                    print("image_contrastive_loss : ", image_contrastive_loss, "errG_total : ", errG_total)
-
+                # loss_dict['errG'] = errG_total
 
                 if gen_iterations % 100 == 0:
                     print('Epoch [{}/{}] Step [{}/{}]'.format(epoch, self.max_epoch, step,

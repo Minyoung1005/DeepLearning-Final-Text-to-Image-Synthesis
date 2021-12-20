@@ -165,7 +165,7 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
 
     log = 'Real_Acc: {:.4f} Fake_Acc: {:.4f} '.format(torch.mean(real_logits).item(), torch.mean(fake_logits).item())
     log_dict = {'Real_Acc': torch.mean(real_logits).item(), 'Fake_Acc': torch.mean(fake_logits).item()}
-    log_dict['image_contrastive'] = (image_contrastive_loss, image_contrastive_acc, image_contrastive_entropy)
+    log_dict['image_contrastive'] = image_contrastive_loss
     return errD, log, log_dict
 
 
@@ -290,7 +290,11 @@ def contrastive_loss(image_feat, cond_feat, conditions, image_labels, cond_label
         # logits_cond2img = (np.matmul(cond_feat.unsqueeze(1), image_feat_large.unsqueeze(2)) / temperature).squeeze()
         # logits_img2cond = np.matmul(image_feat, np.transpose(cond_feat_large, (0,2,1))) / temperature
         # logits_cond2img = np.matmul(cond_feat, np.transpose(image_feat_large, (0,2,1))) / temperature
-
+        # import ipdb; ipdb.set_trace()
+        logits_img2cond[logits_img2cond > 1.0] = 1.0
+        logits_cond2img[logits_cond2img > 1.0] = 1.0
+        logits_img2cond[logits_img2cond < 0.0] = 0.0
+        logits_cond2img[logits_cond2img < 0.0] = 0.0
         loss_img2cond = nn.BCELoss()(logits_img2cond, torch.FloatTensor(labels))
         loss_cond2img = nn.BCELoss()(logits_cond2img, torch.FloatTensor(labels))
         loss_img2cond = np.mean(loss_img2cond.numpy())
