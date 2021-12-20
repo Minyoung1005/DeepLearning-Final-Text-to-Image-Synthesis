@@ -11,18 +11,20 @@ CUDA: True
 WRONG_CAPTION: 9
 
 CHECKPOINT_DIR: './checkpoint'
+LOG_DIR: './data/logs'
+VERSION_NAME: 'baseline'
 #################################################
 
 GPU_ID: '0'
-WORKERS: 1 #4
+WORKERS: 1
 
-BATCH_SIZE: 16 #64
+BATCH_SIZE: 32
 
 TREE:
     BASE_SIZE: 32
 #    BRANCH_NUM: 2
     # DM-GAN
-    BRANCH_NUM: 2 #3
+    BRANCH_NUM: 3
 
 
 
@@ -41,7 +43,7 @@ TRAIN:
 #    GENERATOR_LR: 0.0002
     # DM-GAN
     # Training options
-    BATCH_SIZE: 16 #64 #10
+    BATCH_SIZE: 32 #10
     MAX_EPOCH:  800
     SNAPSHOT_INTERVAL: 25 #2000
     DISCRIMINATOR_LR: 0.0002 #2e-4ipykern

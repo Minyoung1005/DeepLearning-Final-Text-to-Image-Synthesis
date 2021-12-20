@@ -24,6 +24,10 @@ import os
 import time
 import numpy as np
 import sys
+import tensorboard
+from tensorboardX import SummaryWriter
+from datetime import datetime
+import horovod.torch as hvd
 
 # ################# Text to image task############################ #
 class condGANTrainer(object):
@@ -36,6 +40,9 @@ class condGANTrainer(object):
 
         #torch.cuda.set_device(cfg.GPU_ID)
         #cudnn.benchmark = True
+        # Train with multi-GPU
+        # hvd.init()
+        # torch.cuda.set_device(hvd.local_rank())
 
         self.batch_size = cfg.TRAIN.BATCH_SIZE #
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
@@ -160,11 +167,19 @@ class condGANTrainer(object):
             opt = optim.Adam(filter(lambda p: p.requires_grad, netsD[i].parameters()),
                              lr=cfg.TRAIN.DISCRIMINATOR_LR,
                              betas=(0.5, 0.999))
+            opt = hvd.DistributedOptimizer(
+                opt,
+                named_parameters=netsD[i].named_parameters())
+
             optimizersD.append(opt)
 
         optimizerG = optim.Adam(netG.parameters(),
                                 lr=cfg.TRAIN.GENERATOR_LR,
                                 betas=(0.5, 0.999))
+        optimizerG = hvd.DistributedOptimizer(
+            optimizerG,
+            named_parameters=netG.named_parameters())
+
 
         return optimizerG, optimizersD
 
@@ -278,6 +293,14 @@ class condGANTrainer(object):
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()
         avg_param_G = copy_G_params(netG)
         optimizerG, optimizersD = self.define_optimizers(netG, netsD)
+        #multi-GPU
+        hvd.broadcast_parameters(
+            netG.state_dict(),
+            root_rank=0)
+        for i in len(netsD):
+            hvd.broadcast_parameters(
+                netsD[i].state_dict(),
+                root_rank=0)
         real_labels, fake_labels, match_labels = self.prepare_labels()
 
         batch_size = self.batch_size
@@ -286,7 +309,10 @@ class condGANTrainer(object):
         fixed_noise = Variable(torch.FloatTensor(batch_size, nz).normal_(0, 1))
         if cfg.CUDA:
             noise, fixed_noise = noise.to(self.device), fixed_noise.to(self.device) #.cuda()
-
+            
+        writer = SummaryWriter(log_dir=os.path.join(cfg.LOG_DIR, datetime.now().strftime('%b%d_%H-%M-%S')+'_'+'ver_'+cfg.VERSION_NAME))
+        # logdir = writer.file_writer.get_logdir()
+        # savePath = join(logdir, savePath)
         gen_iterations = 0
         # gen_iterations = start_epoch * self.num_batches
         for epoch in range(start_epoch, self.max_epoch):
@@ -328,7 +354,7 @@ class condGANTrainer(object):
                 D_logs = ''
                 for i in range(len(netsD)):
                     netsD[i].zero_grad()
-                    errD, log = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],sent_emb, real_labels, fake_labels)
+                    errD, log, log_dict = discriminator_loss(netsD[i], imgs[i], fake_imgs[i],sent_emb, real_labels, fake_labels)
                     # backward and update parameters
                     errD.backward()
                     optimizersD[i].step()
@@ -346,7 +372,7 @@ class condGANTrainer(object):
                 # do not need to compute gradient for Ds
                 # self.set_requires_grad_value(netsD, False)
                 netG.zero_grad()
-                errG_total, G_logs = \
+                errG_total, G_logs, G_log_dict = \
                     generator_loss(netsD, image_encoder, fake_imgs, real_labels,
                                    words_embs, sent_emb, match_labels, cap_lens, class_ids)
                 kl_loss = KL_loss(mu, logvar)
@@ -361,6 +387,10 @@ class condGANTrainer(object):
                 if gen_iterations % 100 == 0:
                     print('Epoch [{}/{}] Step [{}/{}]'.format(epoch, self.max_epoch, step,
                                                               self.num_batches) + ' ' + D_logs + ' ' + G_logs)
+                    for key in log_dict:
+                        writer.add_scalar(key, log_dict[key], (epoch-1)*self.num_batches+gen_iterations)
+                    for key in G_log_dict:
+                        writer.add_scalar(key, G_log_dict[key], (epoch-1)*self.num_batches+gen_iterations)
                 # save images
                 if gen_iterations % 10000 == 0:
                     backup_para = copy_G_params(netG)
@@ -384,6 +414,8 @@ class condGANTrainer(object):
             print('-' * 89)
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
                 self.save_model(netG, avg_param_G, netsD, epoch)
+            writer.add_scalar('Total_errD', errD_total.item(), epoch)
+            writer.add_scalar('Total_errG', errG_total.item(), epoch)
 
         self.save_model(netG, avg_param_G, netsD, self.max_epoch)
 

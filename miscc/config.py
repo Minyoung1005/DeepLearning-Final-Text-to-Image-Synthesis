@@ -30,6 +30,10 @@ __C.TREE = edict()
 __C.TREE.BRANCH_NUM = 0
 __C.TREE.BASE_SIZE = 0
 
+# Tensorboard log
+__C.LOG_DIR = './data/logs'
+__C.VERSION_NAME = 'baseline'
+
 # Test options
 __C.TEST = edict()
 __C.TEST.B_EXAMPLE = False

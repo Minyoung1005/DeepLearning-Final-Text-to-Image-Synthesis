@@ -12,9 +12,10 @@ import dateutil.tz
 
 from utils.data_utils import CUBDataset
 from utils.trainer import trainer
+import horovod.torch as hvd
 
 # Set a config file as 'train_birds.yml' in training, as 'eval_birds.yml' for evaluation
-cfg_from_file('cfg/eval_birds.yml') # eval_birds.yml
+cfg_from_file('cfg/train_birds.yml') # eval_birds.yml
 
 print('Using config:')
 pprint.pprint(cfg)
@@ -52,11 +53,22 @@ print(f'# of test captions:{np.asarray(test_dataset.captions).shape}\n')
 print(f'# of train caption ids:{np.asarray(train_dataset.captions_ids).shape}')
 print(f'# of test caption ids:{np.asarray(test_dataset.captions_ids).shape}\n')
 
+# For multi-GPU training
+hvd.init()
+torch.cuda.set_device(hvd.local_rank())
+train_sampler = torch.utils.data.distributed.DistributedSampler(
+    train_dataset,
+    num_replicas=hvd.size(),
+    rank=hvd.rank())
+test_sampler = torch.utils.data.distributed.DistributedSampler(
+    test_dataset,
+    num_replicas=hvd.size(),
+    rank=hvd.rank())
 
 train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE,
-        drop_last=True, shuffle=True, num_workers=int(cfg.WORKERS))
+        drop_last=True, shuffle=True, num_workers=int(cfg.WORKERS), sampler=train_sampler)
 test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE,
-        drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS))
+        drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS), sampler=test_sampler)
 
 
 ## 2. Define models and go to train/evaluate
