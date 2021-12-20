@@ -26,6 +26,11 @@ TREE:
     # DM-GAN
     BRANCH_NUM: 3
 
+##STUDENT
+CONTRASTIVE:
+    WORD_CONTRASTIVE: True
+    SENTENCE_CONTRASTIVE: True
+    IMAGE_CONTRASTIVE: True
 
 
 #################################################

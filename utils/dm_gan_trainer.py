@@ -40,9 +40,6 @@ class condGANTrainer(object):
 
         #torch.cuda.set_device(cfg.GPU_ID)
         #cudnn.benchmark = True
-        # Train with multi-GPU
-        # hvd.init()
-        # torch.cuda.set_device(hvd.local_rank())
 
         self.batch_size = cfg.TRAIN.BATCH_SIZE #
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
@@ -167,18 +164,18 @@ class condGANTrainer(object):
             opt = optim.Adam(filter(lambda p: p.requires_grad, netsD[i].parameters()),
                              lr=cfg.TRAIN.DISCRIMINATOR_LR,
                              betas=(0.5, 0.999))
-            opt = hvd.DistributedOptimizer(
-                opt,
-                named_parameters=netsD[i].named_parameters())
+            # opt = hvd.DistributedOptimizer(
+            #     opt,
+            #     named_parameters=netsD[i].named_parameters())
 
             optimizersD.append(opt)
 
         optimizerG = optim.Adam(netG.parameters(),
                                 lr=cfg.TRAIN.GENERATOR_LR,
                                 betas=(0.5, 0.999))
-        optimizerG = hvd.DistributedOptimizer(
-            optimizerG,
-            named_parameters=netG.named_parameters())
+        # optimizerG = hvd.DistributedOptimizer(
+        #     optimizerG,
+        #     named_parameters=netG.named_parameters())
 
 
         return optimizerG, optimizersD
@@ -294,13 +291,13 @@ class condGANTrainer(object):
         avg_param_G = copy_G_params(netG)
         optimizerG, optimizersD = self.define_optimizers(netG, netsD)
         #multi-GPU
-        hvd.broadcast_parameters(
-            netG.state_dict(),
-            root_rank=0)
-        for i in len(netsD):
-            hvd.broadcast_parameters(
-                netsD[i].state_dict(),
-                root_rank=0)
+        # hvd.broadcast_parameters(
+        #     netG.state_dict(),
+        #     root_rank=0)
+        # for i in len(netsD):
+        #     hvd.broadcast_parameters(
+        #         netsD[i].state_dict(),
+        #         root_rank=0)
         real_labels, fake_labels, match_labels = self.prepare_labels()
 
         batch_size = self.batch_size
@@ -350,6 +347,7 @@ class condGANTrainer(object):
                 #######################################################
                 # (3) Update D network
                 ######################################################
+                loss_dict = {'errsD':[], 'image_contrastive':[]}
                 errD_total = 0
                 D_logs = ''
                 for i in range(len(netsD)):
@@ -361,6 +359,8 @@ class condGANTrainer(object):
                     errD_total += errD
                     D_logs += 'errD%d: %.2f ' % (i, errD.item())
                     D_logs += log
+                    loss_dict['errsD'].append(errD)
+                    loss_dict['image_contrastive'].append(log_dict['image_contrastive'])
 
                 #######################################################
                 # (4) Update G network: maximize log(D(G(z)))
@@ -383,6 +383,27 @@ class condGANTrainer(object):
                 optimizerG.step()
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
+                loss_dict['errG'] = errG_total
+
+                if cfg.CONTRASTIVE.WORD_CONTRASTIVE:
+                    # real_region_features, _ = image_encoder(imgs)
+                    # real_word_loss0, real_word_loss1, real_att_maps = words_loss(real_region_features.detach(),
+                    #                             words_embs.detach(),
+                    #                             None, cap_lens,
+                    #                             None, self.batch_size)
+                    # fake_region_features, _ = image_encoder(fake_imgs)
+                    # real_word_loss0, real_word_loss1, real_att_maps = words_loss(fake_region_features.detach(),
+                    #                                                              words_embs.detach(),
+                    #                                                              None, cap_lens,
+                    #                                                              None, self.batch_size)
+                    # real_loss = real_word_loss0+real_word_loss1
+                    # # Image contrastive loss
+                    # c_loss_d, c_loss_g = calculate_contrastive_loss(loss_dict)
+                    image_contrastive_loss, image_contrastive_acc, image_contrastive_entropy = log_dict['image_contrastive']
+                    # c_loss_d = errD_total
+                    errG_total += image_contrastive_loss
+                    print("image_contrastive_loss : ", image_contrastive_loss, "errG_total : ", errG_total)
+
 
                 if gen_iterations % 100 == 0:
                     print('Epoch [{}/{}] Step [{}/{}]'.format(epoch, self.max_epoch, step,

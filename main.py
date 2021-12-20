@@ -54,21 +54,21 @@ print(f'# of train caption ids:{np.asarray(train_dataset.captions_ids).shape}')
 print(f'# of test caption ids:{np.asarray(test_dataset.captions_ids).shape}\n')
 
 # For multi-GPU training
-hvd.init()
-torch.cuda.set_device(hvd.local_rank())
-train_sampler = torch.utils.data.distributed.DistributedSampler(
-    train_dataset,
-    num_replicas=hvd.size(),
-    rank=hvd.rank())
-test_sampler = torch.utils.data.distributed.DistributedSampler(
-    test_dataset,
-    num_replicas=hvd.size(),
-    rank=hvd.rank())
+# hvd.init()
+# torch.cuda.set_device(hvd.local_rank())
+# train_sampler = torch.utils.data.distributed.DistributedSampler(
+#     train_dataset,
+#     num_replicas=hvd.size(),
+#     rank=hvd.rank())
+# test_sampler = torch.utils.data.distributed.DistributedSampler(
+#     test_dataset,
+#     num_replicas=hvd.size(),
+#     rank=hvd.rank())
 
 train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.BATCH_SIZE,
-        drop_last=True, shuffle=True, num_workers=int(cfg.WORKERS), sampler=train_sampler)
+        drop_last=True, shuffle=True, num_workers=int(cfg.WORKERS)) #, sampler=train_sampler
 test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE,
-        drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS), sampler=test_sampler)
+        drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS)) #, sampler=test_sampler
 
 
 ## 2. Define models and go to train/evaluate

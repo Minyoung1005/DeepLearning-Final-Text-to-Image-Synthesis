@@ -140,7 +140,9 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
     fake_features = netD(fake_imgs.detach())
     # loss
     #
+
     cond_real_logits = netD.COND_DNET(real_features, conditions)
+    # print(cond_real_logits.shape, real_labels.shape, real_features.shape, conditions.shape)
     cond_real_errD = nn.BCELoss()(cond_real_logits, real_labels)
     cond_fake_logits = netD.COND_DNET(fake_features, conditions)
     cond_fake_errD = nn.BCELoss()(cond_fake_logits, fake_labels)
@@ -158,8 +160,12 @@ def discriminator_loss(netD, real_imgs, fake_imgs, conditions,
                 (fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
     else:
         errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
+    # Image Contrastive Loss
+    image_contrastive_loss = contrastive_loss(fake_features, real_features, conditions, real_labels, fake_labels)
+
     log = 'Real_Acc: {:.4f} Fake_Acc: {:.4f} '.format(torch.mean(real_logits).item(), torch.mean(fake_logits).item())
     log_dict = {'Real_Acc': torch.mean(real_logits).item(), 'Fake_Acc': torch.mean(fake_logits).item()}
+    log_dict['image_contrastive'] = (image_contrastive_loss, image_contrastive_acc, image_contrastive_entropy)
     return errD, log, log_dict
 
 
@@ -239,3 +245,68 @@ def KL_loss(mu, logvar):
     KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
     KLD = torch.mean(KLD_element).mul_(-0.5)
     return KLD
+
+#############
+def get_statistics(logits, labels):
+    prob = nn.Softmax(logits)
+    entropy = -np.mean(np.sum(prob*np.log(prob+1e-8), axis=-1))
+    label_acc = np.equal(np.argmax(logits, axis=-1), np.argmax(labels, axis=-1))
+    label_acc = np.mean(np.asarray(label_acc, dtype=np.float))
+    return label_acc, entropy
+def l2_normalize(x, axis=None, epsilon=1e-12):
+    square_sum = np.square(x).reshape(x.shape[0], -1).sum(axis=axis)
+    x_inv_norm = (square_sum**-0.5).reshape(-1,1,1,1)
+    return np.multiply(x, x_inv_norm)
+def contrastive_loss(image_feat, cond_feat, conditions, image_labels, cond_labels, l2_norm=True, temperature=1.0, sync_match=False):
+    """
+    calculate image contrastive loss
+    :param image_feat:
+    :param cond_feat:
+    :param l2_norm:
+    :param temperature:
+    :param sync_match:
+    :return:
+        loss, accuracy, entorpy
+    """
+    if l2_norm:
+        image_feat = l2_normalize(image_feat.cpu().detach(), axis=-1)
+        cond_feat = l2_normalize(cond_feat.cpu().detach(), axis=-1)
+        # image_feat = np.linalg.norm(image_feat.cpu().detach(), axis=-1, keepdims=True)
+        # cond_feat = np.linalg.norm(cond_feat.cpu().detach(), axis=-1, keepdims=True)
+    local_batch_size = image_feat.shape[0]
+    if sync_match:
+        raise NotImplementedError
+    else:
+
+        values = np.arange(local_batch_size)
+        labels = np.eye(local_batch_size) #values
+        image_feat = image_feat.reshape(local_batch_size, -1)
+        cond_feat = cond_feat.reshape(local_batch_size, -1)
+        image_feat_large = image_feat
+        cond_feat_large = cond_feat
+        logits_img2cond = (np.matmul(image_feat, cond_feat_large.transpose(1,0)) / temperature)
+        logits_cond2img = (np.matmul(cond_feat, image_feat_large.transpose(1, 0)) / temperature)
+        # logits_img2cond = (np.matmul(image_feat.unsqueeze(1), cond_feat_large.unsqueeze(2)) / temperature).squeeze()
+        # logits_cond2img = (np.matmul(cond_feat.unsqueeze(1), image_feat_large.unsqueeze(2)) / temperature).squeeze()
+        # logits_img2cond = np.matmul(image_feat, np.transpose(cond_feat_large, (0,2,1))) / temperature
+        # logits_cond2img = np.matmul(cond_feat, np.transpose(image_feat_large, (0,2,1))) / temperature
+
+        loss_img2cond = nn.BCELoss()(logits_img2cond, torch.FloatTensor(labels))
+        loss_cond2img = nn.BCELoss()(logits_cond2img, torch.FloatTensor(labels))
+        loss_img2cond = np.mean(loss_img2cond.numpy())
+        loss_cond2img = np.mean(loss_cond2img.numpy())
+        loss = loss_img2cond + loss_cond2img
+        # accuracy_1, entropy1 = get_statistics(logits_img2cond, labels)
+        # accuracy_2, entropy2 = get_statistics(logits_cond2img, labels)
+        # accuracy = 0.5*(accuracy_1 + accuracy_2)
+        # entropy = 0.5*(entropy1 + entropy2)
+        return loss #, accuracy, entropy
+# def calculate_contrastive_loss(result_dict):
+#     """
+#
+#     :param result_dict:
+#     :return:
+#         c_loss_sd: Contrastive loss for the discriminator
+#         c_loss_g: Constrastive loss for the generator
+#     """
+#     real_loss = result_dict['errsD']

@@ -1003,6 +1003,9 @@ class D_NET256(nn.Module):
         else:
             self.UNCOND_DNET = None
         self.COND_DNET = D_GET_LOGITS(ndf, nef, bcondition=True)
+        self.word_contrastive = cfg.CONTRASTIVE.WORD_CONTRASTIVE
+        self.SENTENCE_contrastive = cfg.CONTRASTIVE.SENTENCE_CONTRASTIVE
+        self.IMAGE_contrastive = cfg.CONTRASTIVE.IMAGE_CONTRASTIVE
 
     def forward(self, x_var):
         x_code16 = self.img_code_s16(x_var)

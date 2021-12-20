@@ -30,6 +30,11 @@ __C.TREE = edict()
 __C.TREE.BRANCH_NUM = 0
 __C.TREE.BASE_SIZE = 0
 
+__C.CONTRASTIVE = edict()
+__C.CONTRASTIVE.WORD_CONTRASTIVE = True
+__C.CONTRASTIVE.SENTENCE_CONTRASTIVE = True
+__C.CONTRASTIVE.IMAGE_CONTRASTIVE = True
+
 # Tensorboard log
 __C.LOG_DIR = './data/logs'
 __C.VERSION_NAME = 'baseline'
