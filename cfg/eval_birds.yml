@@ -24,7 +24,7 @@ TREE:
 
 TRAIN:
     FLAG: False
-    CNN_ENCODER: '' #'./evaluation/sim_models/bird/image_encoder.pth'
+    CNN_ENCODER: './evaluation/sim_models/bird/image_encoder.pth'
     RNN_ENCODER: './models/bird/text_encoder200.pth' #'' #'./evaluation/sim_models/bird/text_encoder.pth'
     GENERATOR: './sample/birds_text-to-image/netG_epoch_75.pth' #'' # Your generator weights (.pth)
     

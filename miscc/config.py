@@ -85,6 +85,7 @@ __C.CNN.H_DIM = 0
 
 # Modal options
 __C.GAN = edict()
+__C.GAN.TYPE = 'DM_GAN'
 __C.GAN.DF_DIM = 0
 __C.GAN.GF_DIM = 0
 __C.GAN.Z_DIM = 0
@@ -114,6 +115,7 @@ __C.TRAIN.FLAG = True
 __C.TRAIN.NET_E = ''
 __C.TRAIN.NET_G = ''
 __C.TRAIN.B_NET_D = True
+__C.TRAIN.NF = 32
 
 __C.TRAIN.SMOOTH = edict()
 __C.TRAIN.SMOOTH.GAMMA1 = 5.0

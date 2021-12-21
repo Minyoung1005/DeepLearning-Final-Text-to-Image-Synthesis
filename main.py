@@ -13,9 +13,11 @@ import dateutil.tz
 from utils.data_utils import CUBDataset
 from utils.trainer import trainer
 import horovod.torch as hvd
+# import sys
+# old_stdout = sys.stdout
 
 # Set a config file as 'train_birds.yml' in training, as 'eval_birds.yml' for evaluation
-cfg_from_file('cfg/train_birds.yml') # eval_birds.yml
+cfg_from_file('cfg/train_birds.yml') # eval_birds.yml # train_birds.yml #train_birds_dfgan.yml
 
 print('Using config:')
 pprint.pprint(cfg)
@@ -24,7 +26,15 @@ os.environ['CUDA_VISIBLE_DEVICES'] = cfg.GPU_ID
 
 now = datetime.datetime.now(dateutil.tz.tzlocal())
 timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-output_dir = 'sample/%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, timestamp)
+version_name = cfg.GAN.TYPE+cfg.VERSION_NAME
+version_name += '_tree{}'.format(cfg.TREE.BRANCH_NUM)
+version_name += cfg.TRAIN.NET_E.split('/')[2]
+if cfg.CONTRASTIVE.IMAGE_CONTRASTIVE:
+    version_name += '_contrastive'
+output_dir = 'sample/%s_%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, version_name, timestamp)
+
+# log_file = open(os.path.join(output_dir, "/message.log"), "w")
+# sys.stdout = log_file
 
 imsize = cfg.TREE.BASE_SIZE * (4 ** (cfg.TREE.BRANCH_NUM - 1))
 image_transform = transforms.Compose([

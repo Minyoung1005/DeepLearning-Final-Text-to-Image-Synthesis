@@ -15,6 +15,8 @@ import time
 from utils.dm_gan_trainer import condGANTrainer
 from utils.model import G_DCGAN, G_NET
 from utils.dmgan_utils import build_super_images, build_super_images2
+from utils.df_gan_trainer import DFGANTrainer
+from utils.dfgan_model import NetG, NetD
 #########################################
 
 #################################################
@@ -86,8 +88,14 @@ class trainer(object):
         self.n_words = train_dataset.n_words # size of the dictionary
         self.train_ixtoword = train_ixtoword
         self.test_ixtoword = test_ixtoword
-        self.gan_trainer = condGANTrainer(output_dir, train_dataloader,self.n_words, self.train_ixtoword, train_dataset)
-        self.gan_test = condGANTrainer(output_dir, test_dataloader, self.n_words, self.test_ixtoword, test_dataset)
+        if cfg.GAN.TYPE=='DM_GAN':
+            self.gan_trainer = condGANTrainer(output_dir, train_dataloader,self.n_words, self.train_ixtoword, train_dataset)
+            self.gan_test = condGANTrainer(output_dir, test_dataloader, self.n_words, self.test_ixtoword, test_dataset)
+        if cfg.GAN.TYPE == 'DF_GAN':
+            self.gan_trainer = DFGANTrainer(output_dir, train_dataloader, self.n_words, self.train_ixtoword,
+                                              train_dataset)
+            self.gan_test = DFGANTrainer(output_dir, test_dataloader, self.n_words, self.test_ixtoword, test_dataset)
+
         '''
         '''
         self.device = 'cuda:' + str(0) if torch.cuda.device_count() > 0 else 'cpu'

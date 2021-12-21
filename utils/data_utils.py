@@ -37,12 +37,21 @@ def get_imgs(img_path, imsize, bbox=None,
     # this part can be different, depending on which method is used
     # Assert that ret[-1] is image with size 128x128
     # ret = [normalize(img)]
-    for i in range(cfg.TREE.BRANCH_NUM):
-        if i < (cfg.TREE.BRANCH_NUM):
-            re_img = transforms.Scale(imsize[i])(img)
-        else:
-            re_img = img
-        ret.append(normalize(re_img))
+    if cfg.GAN.TYPE=='DM_GAN':
+        for i in range(cfg.TREE.BRANCH_NUM):
+            if i < (cfg.TREE.BRANCH_NUM):
+                re_img = transforms.Scale(imsize[i])(img)
+            else:
+                re_img = img
+            ret.append(normalize(re_img))
+    elif cfg.GAN.TYPE == 'DF_GAN':
+        ret.append(normalize(img))
+        # for i in range(cfg.TREE.BRANCH_NUM):
+        #     if i < (cfg.TREE.BRANCH_NUM):
+        #         re_img = transforms.Scale(imsize[i])(img)
+        #     else:
+        #         re_img = img
+        #     ret.append(normalize(re_img))
     #################################################
 
     return ret
@@ -156,6 +165,9 @@ class CUBDataset():
         Outputs:
         - all_captions: list
         """
+        # include relational words e.g. and, with
+        exclude_words_dataset = ['a', 'the', 'is', 'are', 'that', 'this', 'has', 'it', 'on', 'in']
+        # import ipdb;ipdb.set_trace()
         all_captions = []
         for i in range(len(filenames)):
             cap_path = '%s/text_c10/train/%s.txt' % (data_dir, filenames[i])
@@ -175,6 +187,9 @@ class CUBDataset():
                     # and drops everything else
                     tokenizer = RegexpTokenizer(r'\w+')
                     tokens = tokenizer.tokenize(cap.lower())
+                    # for t in tokens:
+                    #     if t in exclude_words_dataset:
+                    #         tokens.remove(t)
                     # print('tokens', tokens)
                     if len(tokens) == 0:
                         #print('cap', cap)
@@ -284,6 +299,8 @@ class CUBDataset():
         - x_len: scalar, length of each tokenized caption
         """
         # a list of indices for a sentence
+        # if sent_ix >= len(self.captions_ids):
+        #     import ipdb;ipdb.set_trace()
         sent_caption = np.asarray(self.captions_ids[sent_ix]).astype('int64')
         if (sent_caption == 0).sum() > 0:
             print('ERROR: do not need END (0) token', sent_caption)
