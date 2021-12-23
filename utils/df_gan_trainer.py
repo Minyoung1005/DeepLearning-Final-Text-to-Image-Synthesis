@@ -110,6 +110,7 @@ class DFGANTrainer(object):
         print('Load text encoder from:', cfg.TRAIN.NET_E)
         logging.info('Load text encoder from:'+ cfg.TRAIN.NET_E)
         text_encoder.eval()
+        import ipdb; ipdb.set_trace()
 
         # #######################generator and discriminators############## #
         netG = NetG(cfg.TRAIN.NF, cfg.GAN.Z_DIM).to(self.device)
@@ -127,6 +128,10 @@ class DFGANTrainer(object):
         if cfg.TRAIN.NET_G != '':
             state_dict = \
                 torch.load(cfg.TRAIN.NET_G, map_location=lambda storage, loc: storage)
+            # copy_state_dict = {}
+            # for key in netG.state_dict():
+            #     if key in state_dict:
+            #
             netG.load_state_dict(state_dict)
             print('Load G from: ', cfg.TRAIN.NET_G)
             logging.info('Load G from: '+ cfg.TRAIN.NET_G)
@@ -137,7 +142,7 @@ class DFGANTrainer(object):
             if cfg.TRAIN.B_NET_D:
                 Gname = cfg.TRAIN.NET_G
                 s_tmp = Gname[:Gname.rfind('/')]
-                Dname = s_tmp+cfg.TRAIN.B_NET_D
+                Dname = Gname.replace("netG", "netD") #("netG_epoch_", "netD_epoch")
                 state_dict = torch.load(Dname, map_location=lambda storage, loc: storage)
                 netD.load_state_dict(state_dict)
         # ########################################################### #
@@ -174,12 +179,12 @@ class DFGANTrainer(object):
 
         return real_labels, fake_labels, match_labels
 
-    def save_model(self, netG, avg_param_G, netD, epoch):
-        backup_para = copy_G_params(netG)
-        load_params(netG, avg_param_G)
+    def save_model(self, netG, netD, epoch):
+        # backup_para = copy_G_params(netG)
+        # load_params(netG, avg_param_G)
         torch.save(netG.state_dict(),
                    '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
-        load_params(netG, backup_para)
+        # load_params(netG, backup_para)
         torch.save(netD.state_dict(), '%s/netD_epoch%d.pth' % (self.model_dir, epoch))
         print('Save G/Ds models.')
         logging.info('Save G/Ds models.')
@@ -189,50 +194,55 @@ class DFGANTrainer(object):
             for p in models_list[i].parameters():
                 p.requires_grad = brequires
 
-    def save_img_results(self, netG, noise, sent_emb, words_embs, mask,
-                         image_encoder, captions, cap_lens,
-                         gen_iterations, real_image, name='current'):
-        # Save images
-        fake_imgs, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask, cap_lens)
-        for i in range(len(attention_maps)):
-            if len(fake_imgs) > 1:
-                img = fake_imgs[i + 1].detach().cpu()
-                lr_img = fake_imgs[i].detach().cpu()
-            else:
-                img = fake_imgs[0].detach().cpu()
-                lr_img = None
-            attn_maps = attention_maps[i]
-            att_sze = attn_maps.size(2)
-            img_set, _ = \
-                build_super_images(img, captions, self.ixtoword,
-                                   attn_maps, att_sze, lr_imgs=lr_img)
-            if img_set is not None:
-                im = Image.fromarray(img_set)
-                fullpath = '%s/G_%s_%d_%d.png' % (self.image_dir, name, gen_iterations, i)
-                im.save(fullpath)
-
-        # for i in range(len(netsD)):
-        i = -1
-        img = fake_imgs[i].detach()
-        region_features, _ = image_encoder(img)
-        att_sze = region_features.size(2)
-        _, _, att_maps = words_loss(region_features.detach(),
-                                    words_embs.detach(),
-                                    None, cap_lens,
-                                    None, self.batch_size)
-        img_set, _ = \
-            build_super_images(fake_imgs[i].detach().cpu(),
-                               captions, self.ixtoword, att_maps, att_sze)
-        if img_set is not None:
-            im = Image.fromarray(img_set)
-            fullpath = '%s/D_%s_%d.png' \
-                       % (self.image_dir, name, gen_iterations)
-            im.save(fullpath)
-        # print(real_image.type)
+    # def save_img_results(self, netG, noise, sent_emb, words_embs, mask,
+    #                      image_encoder, captions, cap_lens,
+    #                      gen_iterations, real_image, name='current'):
+    #     # Save images
+    #     fake_imgs, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask, cap_lens)
+    #     for i in range(len(attention_maps)):
+    #         if len(fake_imgs) > 1:
+    #             img = fake_imgs[i + 1].detach().cpu()
+    #             lr_img = fake_imgs[i].detach().cpu()
+    #         else:
+    #             img = fake_imgs[0].detach().cpu()
+    #             lr_img = None
+    #         attn_maps = attention_maps[i]
+    #         att_sze = attn_maps.size(2)
+    #         img_set, _ = \
+    #             build_super_images(img, captions, self.ixtoword,
+    #                                attn_maps, att_sze, lr_imgs=lr_img)
+    #         if img_set is not None:
+    #             im = Image.fromarray(img_set)
+    #             fullpath = '%s/G_%s_%d_%d.png' % (self.image_dir, name, gen_iterations, i)
+    #             im.save(fullpath)
+    #
+    #     # for i in range(len(netsD)):
+    #     i = -1
+    #     img = fake_imgs[i].detach()
+    #     region_features, _ = image_encoder(img)
+    #     att_sze = region_features.size(2)
+    #     _, _, att_maps = words_loss(region_features.detach(),
+    #                                 words_embs.detach(),
+    #                                 None, cap_lens,
+    #                                 None, self.batch_size)
+    #     img_set, _ = \
+    #         build_super_images(fake_imgs[i].detach().cpu(),
+    #                            captions, self.ixtoword, att_maps, att_sze)
+    #     if img_set is not None:
+    #         im = Image.fromarray(img_set)
+    #         fullpath = '%s/D_%s_%d.png' \
+    #                    % (self.image_dir, name, gen_iterations)
+    #         im.save(fullpath)
+    #     # print(real_image.type)
 
     def prepare_data(self, data):
         # imgs, captions, captions_lens, class_ids, keys = data
-        imgs = data['img']
+        if 'img' in data:
+            imgs = data['img']
+        elif 'gen_img' in data:
+            imgs = data['gen_img']
+        else:
+            imgs = []
         captions = data['caps']
         captions_lens = data['cap_len']
         class_ids = data['cls_id']
@@ -263,11 +273,11 @@ class DFGANTrainer(object):
             captions = Variable(captions)
             sorted_cap_lens = Variable(sorted_cap_lens)
 
-        return real_imgs, captions, sorted_cap_lens, class_ids, keys
+        return real_imgs, captions, sorted_cap_lens, class_ids, keys, sentence_index
 
     def train(self):
         text_encoder, image_encoder, netG, netD, start_epoch = self.build_models()
-        avg_param_G = copy_G_params(netG)
+        # avg_param_G = copy_G_params(netG)
         optimizerG, optimizerD = self.define_optimizers(netG, netD)
         # multi-GPU
         # hvd.broadcast_parameters(
@@ -299,7 +309,7 @@ class DFGANTrainer(object):
                 # (1) Prepare training data and Compute text embeddings
                 ######################################################
                 # data = data_iter.next()
-                imgs, captions, cap_lens, class_ids, keys = self.prepare_data(data)
+                imgs, captions, cap_lens, class_ids, keys, sent_idx = self.prepare_data(data)
 
                 hidden = text_encoder.init_hidden(batch_size)
                 # words_embs: batch_size x nef x seq_len
@@ -391,23 +401,7 @@ class DFGANTrainer(object):
                     for key in result_dict:
                         writer.add_scalar(key, result_dict[key], (epoch - 1) * self.num_batches + gen_iterations)
                 # save images
-                if gen_iterations % 10000 == 0:
-                    backup_para = copy_G_params(netG)
-                    load_params(netG, avg_param_G)
-                    # self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, image_encoder,
-                    #                      captions, cap_lens, epoch, imgs[-1], name='average')
-                    load_params(netG, backup_para)
-                    #
-                    # self.save_img_results(netG, fixed_noise, sent_emb,
-                    #                       words_embs, mask, image_encoder,
-                    #                       captions, cap_lens,
-                    #                       epoch, name='current')
-                # if gen_iterations % 1000 == 0:
-                #    time.sleep(30)
-                # if gen_iterations % 10000 == 0:
-                #    time.sleep(160)
-            # print('[%d/%d][%d/%d] Loss_D: %.3f Loss_G %.3f'
-            #       % (epoch, cfg.TRAIN.MAX_EPOCH, step, self.num_batches, errD.item(), errG.item()))
+
             end_t = time.time()
 
             print('''[%d/%d] Loss_D: %.2f Loss_G: %.2f Time: %.2fs''' % (
@@ -417,7 +411,7 @@ class DFGANTrainer(object):
             print('-' * 89)
             logging.info('-' * 89)
             if epoch % cfg.TRAIN.SNAPSHOT_INTERVAL == 0:  # and epoch != 0:
-                self.save_model(netG, avg_param_G, netD, epoch)
+                self.save_model(netG, netD, epoch)
             writer.add_scalar('Total_errD', errD.item(), epoch)
             writer.add_scalar('Total_errG', errG.item(), epoch)
 
@@ -429,7 +423,7 @@ class DFGANTrainer(object):
             #     torch.save(netG.state_dict(), 'models/%s/netG_%03d.pth' % (cfg.CONFIG_NAME, epoch))
             #     torch.save(netD.state_dict(), 'models/%s/netD_%03d.pth' % (cfg.CONFIG_NAME, epoch))
 
-        self.save_model(netG, avg_param_G, netD, self.max_epoch)
+        self.save_model(netG, netD, self.max_epoch)
 
     def save_singleimages(self, images, filenames, save_dir,
                           split_dir, sentenceID=0):
@@ -450,131 +444,53 @@ class DFGANTrainer(object):
             im = Image.fromarray(ndarr)
             im.save(fullpath)
 
-    def sampling(self, split_dir):
-        if cfg.TRAIN.NET_G == '':
-            print('Error: the path for morels is not found!')
-        else:
-            if split_dir == 'test':
-                split_dir = 'valid'
-            # Build and load the generator
-            if cfg.GAN.B_DCGAN:
-                netG = G_DCGAN()
-            else:
-                netG = G_NET()
-            netG.apply(weights_init)
-            netG.to(self.device)  # .cuda()
-            netG.eval()
+    def sampling(self, text_encoder, netG, dataloader, device):
+        import ipdb; ipdb.set_tra
+        model_dir = cfg.TRAIN.NET_G
+        split_dir = 'valid'
+        # Build and load the generator
+        netG.load_state_dict(torch.load('models/%s/netG.pth' % (cfg.CONFIG_NAME)))
+        netG.eval()
 
-            # load text encoder
-            text_encoder = RNN_ENCODER(self.n_words, nhidden=cfg.TEXT.EMBEDDING_DIM)
-            state_dict = torch.load(cfg.TRAIN.NET_E, map_location=lambda storage, loc: storage)
-            text_encoder.load_state_dict(state_dict)
-            print('Load text encoder from:', cfg.TRAIN.NET_E)
-            text_encoder = text_encoder.to(self.device)  # .cuda()
-            text_encoder.eval()
-
-            # load image encoder
-            image_encoder = CNN_ENCODER(cfg.TEXT.EMBEDDING_DIM)
-            img_encoder_path = cfg.TRAIN.NET_E.replace('text_encoder', 'image_encoder')
-            state_dict = torch.load(img_encoder_path, map_location=lambda storage, loc: storage)
-            image_encoder.load_state_dict(state_dict)
-            print('Load image encoder from:', img_encoder_path)
-            image_encoder = image_encoder.to(self.device)  # .cuda()
-            image_encoder.eval()
-
-            batch_size = self.batch_size
-            nz = cfg.GAN.Z_DIM
-            noise = Variable(torch.FloatTensor(batch_size, nz), volatile=True)
-            noise = noise.to(self.device)  # .cuda()
-
-            model_dir = cfg.TRAIN.NET_G
-            state_dict = torch.load(model_dir, map_location=lambda storage, loc: storage)
-            # state_dict = torch.load(cfg.TRAIN.NET_G)
-            netG.load_state_dict(state_dict)
-            print('Load G from: ', model_dir)
-
-            # the path to save generated images
-            s_tmp = model_dir[:model_dir.rfind('.pth')]
-            save_dir = '%s/%s' % (s_tmp, split_dir)
-            mkdir_p(save_dir)
-
-            cnt = 0
-            R_count = 0
-            R = np.zeros(30000)
-            cont = True
-            for ii in range(11):  # (cfg.TEXT.CAPTIONS_PER_IMAGE):
-                if (cont == False):
-                    break
-                for step, data in enumerate(self.data_loader, 0):
-                    cnt += batch_size
-                    if (cont == False):
-                        break
-                    if step % 100 == 0:
-                        print('cnt: ', cnt)
-                    # if step > 50:
-                    #     break
-
-                    imgs, captions, cap_lens, class_ids, keys = prepare_data(data)
-
-                    hidden = text_encoder.init_hidden(batch_size)
-                    # words_embs: batch_size x nef x seq_len
-                    # sent_emb: batch_size x nef
-                    words_embs, sent_emb = text_encoder(captions, cap_lens, hidden)
-                    words_embs, sent_emb = words_embs.detach(), sent_emb.detach()
-                    mask = (captions == 0)
-                    num_words = words_embs.size(2)
-                    if mask.size(1) > num_words:
-                        mask = mask[:, :num_words]
-
-                    #######################################################
-                    # (2) Generate fake images
-                    ######################################################
-                    noise.data.normal_(0, 1)
-                    fake_imgs, _, _, _ = netG(noise, sent_emb, words_embs, mask, cap_lens)
-                    for j in range(batch_size):
-                        s_tmp = '%s/single/%s' % (save_dir, keys[j])
-                        folder = s_tmp[:s_tmp.rfind('/')]
-                        if not os.path.isdir(folder):
-                            # print('Make a new folder: ', folder)
-                            mkdir_p(folder)
-                        k = -1
-                        # for k in range(len(fake_imgs)):
-                        im = fake_imgs[k][j].data.cpu().numpy()
-                        # [-1, 1] --> [0, 255]
-                        im = (im + 1.0) * 127.5
-                        im = im.astype(np.uint8)
-                        im = np.transpose(im, (1, 2, 0))
-                        im = Image.fromarray(im)
-                        fullpath = '%s_s%d_%d.png' % (s_tmp, k, ii)
-                        im.save(fullpath)
-
-                    _, cnn_code = image_encoder(fake_imgs[-1])
-
-                    for i in range(batch_size):
-                        mis_captions, mis_captions_len = self.dataset.get_mis_caption(class_ids[i])
-                        hidden = text_encoder.init_hidden(99)
-                        _, sent_emb_t = text_encoder(mis_captions, mis_captions_len, hidden)
-                        rnn_code = torch.cat((sent_emb[i, :].unsqueeze(0), sent_emb_t), 0)
-                        ### cnn_code = 1 * nef
-                        ### rnn_code = 100 * nef
-                        scores = torch.mm(cnn_code[i].unsqueeze(0), rnn_code.transpose(0, 1))  # 1* 100
-                        cnn_code_norm = torch.norm(cnn_code[i].unsqueeze(0), 2, dim=1, keepdim=True)
-                        rnn_code_norm = torch.norm(rnn_code, 2, dim=1, keepdim=True)
-                        norm = torch.mm(cnn_code_norm, rnn_code_norm.transpose(0, 1))
-                        scores0 = scores / norm.clamp(min=1e-8)
-                        if torch.argmax(scores0) == 0:
-                            R[R_count] = 1
-                        R_count += 1
-
-                    if R_count >= 30000:
-                        sum = np.zeros(10)
-                        np.random.shuffle(R)
-                        for i in range(10):
-                            sum[i] = np.average(R[i * 3000:(i + 1) * 3000 - 1])
-                        R_mean = np.average(sum)
-                        R_std = np.std(sum)
-                        print("R mean:{:.4f} std:{:.4f}".format(R_mean, R_std))
-                        cont = False
+        batch_size = cfg.TRAIN.BATCH_SIZE
+        s_tmp = model_dir
+        save_dir = '%s/%s' % (s_tmp, split_dir)
+        mkdir_p(save_dir)
+        cnt = 0
+        for i in range(1):  # (cfg.TEXT.CAPTIONS_PER_IMAGE):
+            for step, data in enumerate(dataloader, 0):
+                imags, captions, cap_lens, class_ids, keys, sent_idx = prepare_data(data)
+                cnt += batch_size
+                if step % 100 == 0:
+                    print('step: ', step)
+                # if step > 50:
+                #     break
+                hidden = text_encoder.init_hidden(batch_size)
+                # words_embs: batch_size x nef x seq_len
+                # sent_emb: batch_size x nef
+                words_embs, sent_emb = text_encoder(captions, cap_lens, hidden)
+                words_embs, sent_emb = words_embs.detach(), sent_emb.detach()
+                #######################################################
+                # (2) Generate fake images
+                ######################################################
+                with torch.no_grad():
+                    noise = torch.randn(batch_size, 100)
+                    noise = noise.to(device)
+                    fake_imgs = netG(noise, sent_emb)
+                for j in range(batch_size):
+                    s_tmp = '%s/single/%s' % (save_dir, keys[j])
+                    folder = s_tmp[:s_tmp.rfind('/')]
+                    if not os.path.isdir(folder):
+                        print('Make a new folder: ', folder)
+                        mkdir_p(folder)
+                    im = fake_imgs[j].data.cpu().numpy()
+                    # [-1, 1] --> [0, 255]
+                    im = (im + 1.0) * 127.5
+                    im = im.astype(np.uint8)
+                    im = np.transpose(im, (1, 2, 0))
+                    im = Image.fromarray(im)
+                    fullpath = '%s_%3d.png' % (s_tmp, i)
+                    im.save(fullpath)
 
     def gen_example(self, data_dic):
         if cfg.TRAIN.NET_G == '':

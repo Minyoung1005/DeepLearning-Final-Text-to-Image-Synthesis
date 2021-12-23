@@ -27,41 +27,6 @@ device = 'cuda:' + str(0) if torch.cuda.device_count() > 0 else 'cpu'
 # DO NOT CHANGE THE CLASS NAME, COMPOSITION OF ENCODER CAN BE CHANGED
 class RNN_ENCODER(nn.Module):
 #######################################################################################################
-    # def __init__(self, ntoken, ninput=256, drop_prob=0.5, nhidden=128, nlayers=1, bidirectional=True):
-    #     super(RNN_ENCODER, self).__init__()
-    #     self.n_steps = cfg.TEXT.WORDS_NUM
-    #     self.ntoken = ntoken  # size of the dictionary
-    #     self.ninput = ninput  # size of each embedding vector
-    #     self.drop_prob = drop_prob  # probability of an element to be zeroed
-    #     self.nlayers = nlayers  # Number of recurrent layers
-    #     self.bidirectional = bidirectional
-    #     self.rnn_type = cfg.RNN.TYPE
-    #
-    #     if bidirectional:
-    #         self.num_directions = 2
-    #     else:
-    #         self.num_directions = 1
-    #
-    #     # number of features in the hidden state
-    #     self.nhidden = nhidden // self.num_directions
-    #
-    #     self.define_module()
-    #
-    #
-    # def define_module(self):
-    #     '''
-    #     e.g., nn.Embedding, nn.Dropout, nn.LSTM
-    #     '''
-    #
-    # def forward(self, captions, cap_lens, hidden, mask=None):
-    #     '''
-    #     1. caption -> embedding
-    #     2. pack_padded_sequence (embedding, cap_lens)
-    #     3. for rnn, hidden is used
-    #     4. sentence embedding should be returned
-    #     '''
-    #
-    #     return sent_emb
     def __init__(self, ntoken, ninput=300, drop_prob=0.5,
                  nhidden=128, nlayers=1, bidirectional=True):
         super(RNN_ENCODER, self).__init__()
@@ -117,6 +82,12 @@ class RNN_ENCODER(nn.Module):
             return Variable(weight.new(self.nlayers * self.num_directions, bsz, self.nhidden).zero_())
 
     def forward(self, captions, cap_lens, hidden, mask=None):
+        '''
+        1. caption -> embedding
+        2. pack_padded_sequence (embedding, cap_lens)
+        3. for rnn, hidden is used
+        4. sentence embedding should be returned
+        '''
         # input: torch.LongTensor of size batch x n_steps
         # --> emb: batch x n_steps x ninput
         emb = self.drop(self.encoder(captions))
@@ -148,27 +119,13 @@ class RNN_ENCODER(nn.Module):
 # DO NOT CHANGE 
 class CNN_ENCODER(nn.Module):
 #######################################################################################################
-    # def __init__(self, nef):
-    #     super(CNN_ENCODER, self).__init__()
-    #     '''
-    #     nef: size of image feature
-    #     '''
-    #
-    #     '''
-    #     any pretrained cnn encoder can be loaded if necessary
-    #     '''
-    #
-    #     self.define_module()
-    #
-    # def define_module(self):
-    #     '''
-    #     '''
-    #
-    # def forward(self, x):
-    #     '''
-    #     '''
-    #     return x
     def __init__(self, nef):
+        '''
+        nef: size of image feature
+        '''
+        '''
+        any pretrained cnn encoder can be loaded if necessary
+        '''
         super(CNN_ENCODER, self).__init__()
         if cfg.TRAIN.FLAG:
             self.nef = nef
@@ -280,8 +237,18 @@ class GENERATOR(nn.Module):
 #######################################################################################################
     def __init__(self):
         super(GENERATOR, self).__init__()
-        '''
-        '''
+        self.ngf = cfg.GAN.GF_DIM
+        self.nz = cfg.GAN.Z_DIM
+        self.fc = nn.Linear(self.nz, self.ngf*8*4*4)
+        self.block0 = G_Block(self.ngf*8, self.ngf*8)
+        self.block1 = G_Block(self.ngf*8, self.ngf*8)
+        self.block2 = G_Block(self.ngf*8, self.ngf*8)
+        self.block3 = G_Block(self.ngf*8, self.ngf*4)
+        self.block4 = G_Block(self.ngf*4, self.ngf*2)
+        self.block5 = G_Block(self.ngf*2, self.ngf*1)
+        self.conv = nn.Sequential(nn.LeakyReLU(0.2, inplace=True),
+                                  nn.Conv2d(self.ngf, 3, kernel_size=3, stride=1, padding=1),
+                                  nn.Tanh())
         
     def forward(self, z_code, sent_emb):
         """
@@ -289,8 +256,15 @@ class GENERATOR(nn.Module):
         sent_emb: batch x cfg.TEXT.EMBEDDING_DIM
         return: generated image
         """
+        out = self.fc(z_code).view(z_code.size(0), self.ngf * 8, 4, 4)  # Bx100->Bx256x4x4
+        out = self.block0(out, sent_emb)  # Bx256x4x4->Bx256x4x4
+        out = self.block1(F.interpolate(out, scale_factor=2), sent_emb)  # Bx256x4x4->Bx256x8x8
+        out = self.block2(F.interpolate(out, scale_factor=2), sent_emb)  # Bx256x8x8->Bx256x16x16
+        out = self.block3(F.interpolate(out, scale_factor=2), sent_emb)  # Bx256x16x16->Bx128x32x32
+        out = self.block4(F.interpolate(out, scale_factor=2), sent_emb)  # Bx128x32x32->Bx64x64x64
+        out = self.block5(F.interpolate(out, scale_factor=2), sent_emb)  # Bx64x64x64->Bx32x128x128
+        fake_imgs = self.conv(out)  # Bx32x128x128->Bx3x128x128
         return fake_imgs
-
 
 #######################################################################################################
 # DO NOT CHANGE 
@@ -298,12 +272,22 @@ class DISCRIMINATOR(nn.Module):
 #######################################################################################################
     def __init__(self, b_jcu=True):
         super(DISCRIMINATOR, self).__init__()
-        '''
-        '''
+        self.ndf = cfg.GAN.DF_DIM
+        self.conv = nn.Conv2d(3, self.ndf, kernel_size=3, stride=1, padding=1)
+        self.block0 = D_Block(self.ndf, self.ndf*2)
+        self.block1 = D_Block(self.ndf*2, self.ndf*4)
+        self.block2 = D_Block(self.ndf*4, self.ndf*8)
+        self.block3 = D_Block(self.ndf*8, self.ndf*16)
+        self.block4 = D_Block(self.ndf*16, self.ndf*16)
+        self.cond_net = Cond_D_Block(self.ndf)
 
     def forward(self, x_var):
-        '''
-        '''
+        x_var = self.conv(x_var)  # Bx3x128x128->Bx32x128x128
+        x_var = self.block0(x_var)  # Bx32x128x128->Bx64x64x64
+        x_var = self.block1(x_var)  # Bx64x64x64->Bx128x32x32
+        x_var = self.block2(x_var)  # Bx128x32x32->Bx256x16x16
+        x_var = self.block3(x_var)  # Bx256x16x16->Bx512x8x8
+        x_var = self.block4(x_var)  # Bx512x8x8->Bx512x4x4
         return x_var
 
 import torch
@@ -320,6 +304,116 @@ from miscc.config import cfg
 from utils.globalattention import GlobalAttentionGeneral as ATT_NET
 from utils.globalattention import GlobalAttention_text as ATT_NET_text
 from utils.spectral import SpectralNorm
+from collections import OrderedDict
+
+
+class G_Block(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(G_Block, self).__init__()
+        self.learnable_shortcut = in_channels != out_channels
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
+        self.affine0 = Affine(in_channels)
+        self.affine1 = Affine(in_channels)
+        self.affine2 = Affine(out_channels)
+        self.affine3 = Affine(out_channels)
+        self.gamma = nn.Parameter(torch.zeros(1))
+        if self.learnable_shortcut:
+            self.conv_sc = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
+
+    def shortcut(self, x):
+        if self.learnable_shortcut:
+            x = self.conv_sc(x)
+        return x
+
+    def residual(self, x, y=None):
+        h = self.affine0(x, y)
+        h = nn.LeakyReLU(0.2, inplace=True)(h)
+        h = self.affine1(h, y)
+        h = nn.LeakyReLU(0.2, inplace=True)(h)
+        h = self.conv1(h)
+
+        h = self.affine2(h, y)
+        h = nn.LeakyReLU(0.2, inplace=True)(h)
+        h = self.affine3(h, y)
+        h = nn.LeakyReLU(0.2, inplace=True)(h)
+        out = self.conv2(h)
+        return out
+
+    def forward(self, x, y=None):
+        return self.shortcut(x) + self.gamma * self.residual(x, y)
+
+
+class Affine(nn.Module):
+    def __init__(self, num_features):
+        super(Affine, self).__init__()
+        self.dim = cfg.TEXT.EMBEDDING_DIM
+        self.fc_gamma = nn.Sequential(OrderedDict([("fc1", nn.Linear(self.dim, self.dim)),
+                                                   ("relu", nn.ReLU(inplace=True)),
+                                                   ("fc2", nn.Linear(self.dim, num_features))]))
+        self.fc_beta = nn.Sequential(OrderedDict([("fc1", nn.Linear(self.dim, self.dim)),
+                                                  ("relu", nn.ReLU(inplace=True)),
+                                                  ("fc2", nn.Linear(self.dim, num_features))]))
+        self.init_weights()
+
+    def init_weights(self):
+        nn.init.zeros_(self.fc_gamma.fc2.weight.data)
+        nn.init.ones_(self.fc_gamma.fc2.bias.data)
+        nn.init.zeros_(self.fc_beta.fc2.weight.data)
+        nn.init.zeros_(self.fc_beta.fc2.bias.data)
+
+    def forward(self, x, y=None):
+        weight = self.fc_gamma(y)
+        bias = self.fc_beta(y)
+        if weight.dim() == 1:
+            weight = weight.unsqueeze(0)
+        if bias.dim() == 1:
+            bias = bias.unsqueeze(0)
+        weight = weight.unsqueeze(-1).unsqueeze(-1).expand(x.size())
+        bias = bias.unsqueeze(-1).unsqueeze(-1).expand(x.size())
+        return weight * x + bias
+
+
+class D_Block(nn.Module):
+    def __init__(self, in_channels, out_channels, downsample=True):
+        super(D_Block, self).__init__()
+        self.downsample = downsample
+        self.learnable_shortcut = in_channels != out_channels
+        self.residual = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=4, stride=2, padding=1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True))
+        self.conv_sc = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def shortcut(self, x):
+        if self.learnable_shortcut:
+            x = self.conv_sc(x)
+        if self.downsample:
+            return F.avg_pool2d(x, 2)
+        return x
+
+    def forward(self, x):
+        return self.shortcut(x) + self.gamma * self.residual(x)
+
+
+class Cond_D_Block(nn.Module):
+    def __init__(self, ndf):
+        super(Cond_D_Block, self).__init__()
+        self.dim = cfg.TEXT.EMBEDDING_DIM
+        self.joint_conv = nn.Sequential(
+            nn.Conv2d(ndf * 16 + self.dim, ndf * 2, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(ndf * 2, 1, kernel_size=4, stride=1, padding=0, bias=False))
+
+    def forward(self, out, y):
+        y = y.view(-1, self.dim, 1, 1)
+        y = y.repeat(1, 1, 4, 4)
+        h_c_code = torch.cat([out, y], dim=1)
+        out = self.joint_conv(h_c_code)
+        return out
+
 
 class GLU(nn.Module):
     def __init__(self):

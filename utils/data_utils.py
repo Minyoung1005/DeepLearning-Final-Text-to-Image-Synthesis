@@ -37,7 +37,9 @@ def get_imgs(img_path, imsize, bbox=None,
     # this part can be different, depending on which method is used
     # Assert that ret[-1] is image with size 128x128
     # ret = [normalize(img)]
-    if cfg.GAN.TYPE=='DM_GAN':
+    if cfg.GAN.TYPE == 'MY_GAN':
+        ret.append(normalize(img))
+    elif cfg.GAN.TYPE=='DM_GAN':
         for i in range(cfg.TREE.BRANCH_NUM):
             if i < (cfg.TREE.BRANCH_NUM):
                 re_img = transforms.Scale(imsize[i])(img)
@@ -71,9 +73,12 @@ class CUBDataset():
         self.transform = transform
         self.imsize = []
         base_size = cfg.TREE.BASE_SIZE
-        for i in range(cfg.TREE.BRANCH_NUM):
-            self.imsize.append(base_size*2)
-            base_size = base_size * 2        
+        if cfg.GAN.TYPE == 'MY_GAN':
+            self.imsize.append(base_size)
+        else:
+            for i in range(cfg.TREE.BRANCH_NUM):
+                self.imsize.append(base_size*2)
+                base_size = base_size * 2
 
         self.current_dir = os.getcwd()
         print(f'self.current_dir:\n{self.current_dir}\n')
@@ -91,7 +96,7 @@ class CUBDataset():
         
         self.filenames, self.captions, self.captions_ids, self.ixtoword, self.wordtoix, self.n_words = self.load_text_data(self.data_dir, split)
         self.class_id = self.load_class_id(self.split_dir)
-            
+
     def load_bbox(self):
         """
         Loads the corresponding bounded box of each bird image, which is saved in a txt format.
@@ -352,6 +357,7 @@ class CUBDataset():
 
             img_name = '%s/images/%s.jpg' % (data_dir, key)
             imgs = get_imgs(img_name, self.imsize, bbox, self.transform, normalize=self.norm)
+            # print(img_name)
             sent_ix = random.randint(0, cfg.TEXT.CAPTIONS_PER_IMAGE-1) # caption index
             new_sent_ix = index * cfg.TEXT.CAPTIONS_PER_IMAGE + sent_ix
             caps, cap_len = self.get_caption(new_sent_ix)

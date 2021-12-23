@@ -415,8 +415,8 @@ class condGANTrainer(object):
                 for p, avg_p in zip(netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
                 # loss_dict['errG'] = errG_total
-                self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, image_encoder,
-                                      captions, cap_lens, epoch, imgs[-1], name='average')
+                # self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, image_encoder,
+                #                       captions, cap_lens, epoch, imgs[-1], name='average')
                 if gen_iterations % 100 == 0:
                     print('Epoch [{}/{}] Step [{}/{}]'.format(epoch, self.max_epoch, step,
                                                               self.num_batches) + ' ' + D_logs + ' ' + G_logs)
@@ -430,8 +430,8 @@ class condGANTrainer(object):
                 if gen_iterations % 10000 == 0:
                     backup_para = copy_G_params(netG)
                     load_params(netG, avg_param_G)
-                    self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, image_encoder,
-                                         captions, cap_lens, epoch, imgs[-1], name='average')
+                    # self.save_img_results(netG, fixed_noise, sent_emb, words_embs, mask, image_encoder,
+                    #                      captions, cap_lens, epoch, imgs[-1], name='average')
                     load_params(netG, backup_para)
                     #
                     # self.save_img_results(netG, fixed_noise, sent_emb,

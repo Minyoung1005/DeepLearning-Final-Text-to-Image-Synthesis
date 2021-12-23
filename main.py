@@ -17,7 +17,7 @@ import horovod.torch as hvd
 # old_stdout = sys.stdout
 
 # Set a config file as 'train_birds.yml' in training, as 'eval_birds.yml' for evaluation
-cfg_from_file('cfg/train_birds.yml') # eval_birds.yml # train_birds.yml #train_birds_dfgan.yml
+cfg_from_file('cfg/train_birds_mygan.yml') # eval_birds.yml # train_birds.yml #train_birds_dfgan.yml
 
 print('Using config:')
 pprint.pprint(cfg)
@@ -28,7 +28,10 @@ now = datetime.datetime.now(dateutil.tz.tzlocal())
 timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
 version_name = cfg.GAN.TYPE+cfg.VERSION_NAME
 version_name += '_tree{}'.format(cfg.TREE.BRANCH_NUM)
-version_name += cfg.TRAIN.NET_E.split('/')[2]
+if cfg.GAN.TYPE == 'MY_GAN':
+    version_name += cfg.TRAIN.RNN_ENCODER.split('/')[2]
+else:
+    version_name += cfg.TRAIN.NET_E.split('/')[2]
 if cfg.CONTRASTIVE.IMAGE_CONTRASTIVE:
     version_name += '_contrastive'
 output_dir = 'sample/%s_%s_%s_%s' % (cfg.DATASET_NAME, cfg.CONFIG_NAME, version_name, timestamp)
@@ -79,7 +82,6 @@ train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.BAT
         drop_last=True, shuffle=True, num_workers=int(cfg.WORKERS)) #, sampler=train_sampler
 test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.BATCH_SIZE,
         drop_last=True, shuffle=False, num_workers=int(cfg.WORKERS)) #, sampler=test_sampler
-
 
 ## 2. Define models and go to train/evaluate
 

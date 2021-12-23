@@ -10,18 +10,18 @@ IMAGE_SIZE: 128
 CUDA: True
 WRONG_CAPTION: 9
 
-CHECKPOINT_DIR: './checkpoint'
+CHECKPOINT_DIR: './sample/DF_GAN' #'./checkpoint'
 LOG_DIR: './data/logs'
-VERSION_NAME: 'from_dfgan'
+VERSION_NAME: 'batchsize24_'
 #################################################
 
 GPU_ID: '0'
 WORKERS: 1
 
-BATCH_SIZE: 24 #32
+BATCH_SIZE: 24 #24 #32
 
 TREE:
-    BASE_SIZE: 256 #32
+    BASE_SIZE: 128 #32
 #    BRANCH_NUM: 2
     # DM-GAN
     BRANCH_NUM: 1 #3
@@ -38,28 +38,19 @@ CONTRASTIVE:
 TRAIN:
     FLAG: True
 #################################################
-    CNN_ENCODER: '' #'./evaluation/sim_models/bird/image_encoder.pth'
-    RNN_ENCODER: '' #'./evaluation/sim_models/bird/text_encoder.pth'
-    GENERATOR: ''
+    CNN_ENCODER: './evaluation/sim_models/bird/image_encoder.pth'
+    RNN_ENCODER: './evaluation/sim_models/bird/text_encoder.pth'
+    GENERATOR: 'netG.pth' # trained only with train data
+    DISCRIMINATOR: 'netD.pth' # trained only with train data
 
-#    MAX_EPOCH: 600
-#    SNAPSHOT_INTERVAL: 50
-#    DISCRIMINATOR_LR: 0.0002
-#    GENERATOR_LR: 0.0002
-    # DM-GAN
     # Training options
-    BATCH_SIZE: 24 #32 #10
+    BATCH_SIZE: 24 #24 #32 #10
     MAX_EPOCH:  800
     SNAPSHOT_INTERVAL: 25 #2000
     DISCRIMINATOR_LR: 0.0004 #2e-4
     GENERATOR_LR: 0.0001 #2e-4
     ENCODER_LR: 0.0002 #2e-4
     RNN_GRAD_CLIP: 0.25
-#    FLAG: True
-    NET_E: './models/DAMSMencoders/bird/text_encoder200.pth'
-    NET_G: './sample/DF_GAN/netG.pth' #'./models/bird_DMGAN.pth' #''
-    B_NET_D: True
-
     NF: 32
 
     SMOOTH:
@@ -83,15 +74,9 @@ RNN:
     TYPE: 'LSTM'
 
 GAN:
-#    DF_DIM: 32
-#    GF_DIM: 64
-#    Z_DIM: 100
-#    CONDITION_DIM: 100
-#    R_NUM: 2
-    TYPE: 'DF_GAN'
-    #DM-GAN
+    TYPE: 'MY_GAN'
     DF_DIM: 32 #64
-    GF_DIM: 64 # 128
+    GF_DIM: 32 # 128
     Z_DIM: 100 #100
     CONDITION_DIM: 100
     R_NUM: 2
@@ -106,7 +91,3 @@ TEXT:
 #################################################
     EMBEDDING_DIM: 256
     WORDS_NUM: 18
-#    # DM-GAN
-#    CAPTIONS_PER_IMAGE: 10
-#    EMBEDDING_DIM: 256
-#    WORDS_NUM: 18
